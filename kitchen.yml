@@ -9,6 +9,7 @@ driver:
     - sys_admin
   disable_upstart: false
   use_internal_docker_network: false
+  run_command: /usr/lib/systemd/systemd
 
 provisioner:
   name: salt_solo
@@ -28,108 +29,78 @@ provisioner:
     sh -c 't=$(shuf -i 1-15 -n 1); echo Sleeping $t seconds; sleep $t'
 
 platforms:
+  - name: almalinux-8
   - name: amazon-2
-    driver_config:
+    driver:
       image: amazonlinux:2
       platform: rhel
-      run_command: /usr/lib/systemd/systemd
       provision_command:
         - yum -y install procps-ng
   - name: arch
-    driver_config:
+    driver:
       image: archlinux/archlinux
-      run_command: /usr/lib/systemd/systemd
       provision_command:
         - pacman -Syu --noconfirm --needed systemd grep awk procps which
         - systemctl enable sshd
-    provisioner:
-      salt_bootstrap_options: -MPfq -D -y -x python2 git %s
   - name: centos-8
-    driver_config:
-      run_command: /usr/lib/systemd/systemd
   - name: centos-7
-    driver_config:
-      run_command: /usr/lib/systemd/systemd
   - name: debian-9
-    driver_config:
+    driver:
       run_command: /lib/systemd/systemd
   - name: debian-10
-    driver_config:
+    driver:
       run_command: /lib/systemd/systemd
   - name: debian-11
-    driver_config:
+    driver:
       image: debian:bullseye
       run_command: /lib/systemd/systemd
-  - name: fedora-32
-    driver_config:
-      image: fedora:32
-      run_command: /usr/lib/systemd/systemd
-      provision_command:
-        - dnf -y install procps-ng
   - name: fedora-33
-    driver_config:
-      image: fedora:33
-      run_command: /usr/lib/systemd/systemd
-      provision_command:
+    driver:
+      provision_command: &fedora_provision_command
         - dnf -y install procps-ng
         - sed -i 's/^PubkeyAcceptedKeyTypes.*$/&,ssh-rsa/' /etc/crypto-policies/back-ends/opensshserver.config
   - name: fedora-34
-    driver_config:
-      image: fedora:34
-      run_command: /usr/lib/systemd/systemd
-      provision_command:
-        - dnf -y install procps-ng
-        - sed -i 's/^PubkeyAcceptedKeyTypes.*$/&,ssh-rsa/' /etc/crypto-policies/back-ends/opensshserver.config
+    driver:
+      provision_command: *fedora_provision_command
   - name: fedora-35
-    driver_config:
-      image: fedora:35
-      run_command: /usr/lib/systemd/systemd
-      provision_command:
-        - dnf -y install procps-ng
-        - sed -i 's/^PubkeyAcceptedKeyTypes.*$/&,ssh-rsa/' /etc/crypto-policies/back-ends/opensshserver.config
+    driver:
+      provision_command: *fedora_provision_command
   - name: gentoo
-    driver_config:
-      image: ksmanis/stage3:latest
+    driver:
+      image: gentoo/stage3:latest
       run_command: /sbin/init
       provision_command:
         - rc-update add sshd default
   - name: gentoo-systemd
-    driver_config:
-      image: ksmanis/stage3:systemd
+    driver:
+      image: gentoo/stage3:systemd
       run_command: /lib/systemd/systemd
       provision_command:
         - systemctl enable sshd.service
   - name: opensuse-15
-    driver_config:
-      image: opensuse/leap:15.1
-      run_command: /usr/lib/systemd/systemd
-      provision_command:
-        - zypper --non-interactive install --auto-agree-with-licenses dbus-1
-        - zypper --non-interactive install --auto-agree-with-licenses sudo openssh which curl
-        - systemctl enable sshd.service
-    provisioner:
-      salt_bootstrap_options: -MPfq -y -x python2 git %s
-  - name: opensuse-tumbleweed
-    driver_config:
-      image: opensuse/tumbleweed:latest
-      run_command: /usr/lib/systemd/systemd
-      provision_command:
+    driver:
+      image: opensuse/leap:15.3
+      provision_command: &opensuse_provision_command
         - zypper --non-interactive install --auto-agree-with-licenses dbus-1
         - zypper --non-interactive install --auto-agree-with-licenses sudo openssh which curl systemd
         - systemctl enable sshd.service
-    provisioner:
-      salt_bootstrap_options: -MPfq -y -x python3 git %s
+  - name: opensuse-tumbleweed
+    driver:
+      image: opensuse/tumbleweed:latest
+      provision_command: *opensuse_provision_command
+  - name: oraclelinux-8
   - name: oraclelinux-7
-    driver_config:
-      run_command: /usr/lib/systemd/systemd
+  - name: rockylinux-8
+    driver:
+      image: rockylinux/rockylinux
+  - name: ubuntu-21.04
+    driver:
+      run_command: /lib/systemd/systemd
   - name: ubuntu-20.04
-    driver_config:
+    driver:
       run_command: /lib/systemd/systemd
   - name: ubuntu-18.04
-    driver_config:
-      run_command: /lib/systemd/systemd
-  - name: ubuntu-16.04
-    driver_config:
+    driver:
       run_command: /lib/systemd/systemd
 
 suites:
@@ -141,6 +112,9 @@ suites:
       - debian-11
       - gentoo
       - gentoo-systemd
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py2-git-master
     provisioner:
       salt_version: master
@@ -149,6 +123,9 @@ suites:
       - debian-11
       - gentoo
       - gentoo-systemd
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py2-stable-3000
     provisioner:
       salt_version: 3000
@@ -159,11 +136,14 @@ suites:
       - opensuse-tumbleweed
       - debian-10
       - debian-11
-      - fedora-32
       - fedora-33
       - gentoo
       - gentoo-systemd
       - ubuntu-2004
+      - ubuntu-2104
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
 
   - name: py3-git-3000
     provisioner:
@@ -173,6 +153,7 @@ suites:
       - debian-11
       - opensuse-tumbleweed
       - ubuntu-2004
+      - ubuntu-2104
   - name: py3-git-3001
     provisioner:
       salt_version: 3001
@@ -180,6 +161,10 @@ suites:
   - name: py3-git-3002
     provisioner:
       salt_version: 3002
+      salt_bootstrap_options: -x python3 -MPfq git %s
+  - name: py3-git-3003
+    provisioner:
+      salt_version: 3003
       salt_bootstrap_options: -x python3 -MPfq git %s
   - name: py3-stable-3000
     provisioner:
@@ -191,6 +176,10 @@ suites:
       - opensuse-tumbleweed
       - arch
       - ubuntu-2004
+      - ubuntu-2104
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py3-stable-3001-0
     provisioner:
       salt_version: 3001
@@ -199,11 +188,14 @@ suites:
       - opensuse-15
       - opensuse-tumbleweed
       - debian-11
-      - fedora-32
       - fedora-33
       - arch
       - gentoo
       - gentoo-systemd
+      - ubuntu-2104
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py3-stable-3001
     provisioner:
       salt_version: 3001
@@ -213,6 +205,10 @@ suites:
       - opensuse-15
       - opensuse-tumbleweed
       - arch
+      - ubuntu-2104
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py3-stable-3002-0
     provisioner:
       salt_version: 3002
@@ -221,11 +217,27 @@ suites:
       - opensuse-15
       - opensuse-tumbleweed
       - debian-11
-      - fedora-32
       - fedora-33
       - arch
       - gentoo
       - gentoo-systemd
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
+  - name: py3-stable-3003-0
+    provisioner:
+      salt_version: 3003
+      salt_bootstrap_options: -x python3 -MP stable 3003.0
+    excludes:
+      - opensuse-15
+      - opensuse-tumbleweed
+      - fedora-33
+      - arch
+      - gentoo
+      - gentoo-systemd
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py3-stable-3002
     provisioner:
       salt_version: 3002
@@ -234,6 +246,20 @@ suites:
       - opensuse-15
       - opensuse-tumbleweed
       - arch
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
+  - name: py3-stable-3003
+    provisioner:
+      salt_version: 3003
+      salt_bootstrap_options: -x python3 -MP stable %s
+    excludes:
+      - opensuse-15
+      - opensuse-tumbleweed
+      - arch
+      - freebsd-130
+      - freebsd-122
+      - openbsd-6
   - name: py3-git-master
     provisioner:
       salt_version: master
